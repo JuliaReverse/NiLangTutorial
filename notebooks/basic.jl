@@ -267,7 +267,7 @@ rev_f2(0.0, 0.0, v)
 md"""
 ## Performance
 
-$(LocalResource("benchmarks.png"))
+$(LocalResource("asset/benchmarks.png"))
 """
 
 # ╔═╡ 2a17f2f6-d496-11ea-1c31-5f85dfd10488
@@ -317,7 +317,7 @@ POP!(var)  # pop `var` from the global stack
 2. copy the result to an emptied memory,
 3. undo the computation to restore the values of variables, especially ancillas.
 
-$(LocalResource("compute-copy-uncompute.png", :width=>500))
+$(LocalResource("asset/compute-copy-uncompute.png", :width=>500))
 """
 
 # ╔═╡ 8a8aaea2-d49c-11ea-2014-37718ebe6465
@@ -350,10 +350,10 @@ rev_f2_v3(0.0, v)
 NiLang.AD.gradient(rev_f2_v3, (0.0, v), iloss=1)
 
 # ╔═╡ a0e231f0-d4b2-11ea-3eac-e34f4afbabe6
-LocalResource("if.png", :width=>400)
+LocalResource("asset/if.png", :width=>400)
 
 # ╔═╡ 58495bbc-d4b2-11ea-0e7a-2f5f4a0596a9
-LocalResource("while.png", :width=>400)
+LocalResource("asset/while.png", :width=>400)
 
 # ╔═╡ 030e592e-d488-11ea-060d-97a3bb6353b7
 @i function reversible_affine!(y!::AbstractVector{T}, W::AbstractMatrix{T}, b::AbstractVector{T}, x::AbstractVector{T}) where T
@@ -488,7 +488,7 @@ md"""
 ##### 2. Solve hard scientific problems
 Obtaining the optimal configuration of a spinglass problem on a $28 \times 28$ square lattice.
 
-$(LocalResource("spinglass28.svg", :width=>400))
+$(LocalResource("asset/spinglass28.svg", :width=>400))
 """
 
 # ╔═╡ Cell order:
