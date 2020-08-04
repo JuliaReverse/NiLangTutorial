@@ -443,7 +443,7 @@ begin
 	k1 = [0]
 	lx1[] *= convert(ULogarithmic{Fixed43}, x1[])
 	y1[] += convert(Fixed43, s1[])
-end
+end;
 
 # ╔═╡ f1fb7290-d4a8-11ea-381d-43a97aa5f408
 @i function exp_step(y, lx, k, s)
@@ -477,9 +477,12 @@ begin
 	left
 	right
 	# should be table https://github.com/JuliaLang/julia/issues/16194
-	md"""y1 = $(y1[])   ,  lx1 = $(lx1[])
+	md"""
+	k1 = $(k1[])
 	
-	k1 = $(k1[]), s1 = $(s1[])
+	y1 = $(y1[])
+	
+	s1 = $(s1[])  ← log number
 	"""
 end
 
@@ -539,9 +542,9 @@ $(LocalResource("asset/spinglass28.svg", :width=>400))
 # ╟─7abf09e6-d495-11ea-09c1-d36b9fbc29ef
 # ╠═91b1bf06-d495-11ea-2930-9b3a0b075c9e
 # ╠═925ad4fc-d4a8-11ea-17eb-b72ab2807ae0
-# ╠═95677526-d4b0-11ea-04c8-c35d4f62c3a0
+# ╟─95677526-d4b0-11ea-04c8-c35d4f62c3a0
 # ╟─02fb8e62-d4a3-11ea-2a6e-bd415591c891
-# ╠═59797cc6-d4a3-11ea-03ab-610102dbc549
+# ╟─59797cc6-d4a3-11ea-03ab-610102dbc549
 # ╟─737b7440-d4a3-11ea-35ee-27a2b1b2ee35
-# ╠═b44e12b8-d4a3-11ea-3f55-776476cd7d69
+# ╟─b44e12b8-d4a3-11ea-3f55-776476cd7d69
 # ╠═89de0b7e-d4a2-11ea-278a-a392b1649486
