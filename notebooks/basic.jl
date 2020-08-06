@@ -131,7 +131,7 @@ ancilla → 0.0
 
 # ╔═╡ 023193dc-d78e-11ea-2e17-e54ad9144b91
 md"""
-#### Example 3: norm with stack operations
+#### Example 1: norm with stack operations
 ```julia
 PUSH!(stack, var)
 PUSH!(var)  # push `var` to the global stack
@@ -298,7 +298,7 @@ md"""
 
 # ╔═╡ 11ddebfe-d488-11ea-223a-e9403f6ec8de
 md"""
-##### Affine transformation as an example
+##### Example 1: Affine transformation
 
 ```julia
 y = A * x + b
@@ -315,17 +315,32 @@ There is no efficient constant memory algorithm using pure fixed point numbers o
 
 # ╔═╡ f06fb004-d79f-11ea-0d60-8151019bf8c7
 md"""
-##### Example: Computing power function
-For example, to compute `x ^ n` reversiblly with fixed point numbers,
-we need to allocate a vector of size $O(n)$.
-With logarithmic numbers, the above computation is straight forward.
+##### Example 2: Computing power function
+To compute `x ^ n` reversiblly with fixed point numbers,
+we need to either allocate a vector of size $O(n)$ or suffer from polynomial time overhead. It does not show the advantage to checkpointing.
+"""
+
+# ╔═╡ 4bb19760-d7bf-11ea-12ed-4d9e4efb3482
+md"""
+##### Example 3: the logarithmic number approach
+
+With **logarithmic numbers**, we can still utilize reversibility. Fixed point numbers and logarithmic numbers can be converted via "a fast binary logarithm algorithm".
+
+##### References
+* [1] C. S. Turner, "A Fast Binary Logarithm Algorithm", IEEE Signal Processing Mag., pp. 124,140, Sep. 2010.
 """
 
 # ╔═╡ 4fd20ed2-d7a2-11ea-206e-13799234913f
 md"**Less allocation, better speed**"
 
 # ╔═╡ 4c209bbe-d7b1-11ea-0628-33eb8d664f5b
-md"##### Example: The first kind Bessel function computed with Taylor expansion"
+md"""##### Example 4: The first kind Bessel function computed with Taylor expansion
+```math
+J_\nu(z) = \sum\limits_{n=0}^{\infty} \frac{(z/2)^\nu}{\Gamma(k+1)\Gamma(k+\nu+1)} (-z^2/4)^{n}
+```
+
+
+"""
 
 # ╔═╡ 8160f4a2-d789-11ea-28f8-e91d58a61642
 md"""
@@ -335,22 +350,30 @@ md"""
 
 # ╔═╡ 02fb8e62-d4a3-11ea-2a6e-bd415591c891
 md"""
-## Applications
+## Sec VI: Applications
 """
 
-# ╔═╡ 59797cc6-d4a3-11ea-03ab-610102dbc549
-md"""
-##### 1. Solve the memory wall problem in machine learning
+# ╔═╡ 4a3f8c7c-d7bd-11ea-2370-3d6b629bc653
+html"""
+Learning a ring distribution with NICE network, before and after training
+
+<img style="float:left" src="https://giggleliu.github.io/NiLang.jl/dev/asset/nice_before.png" width=340/>
+<img src="https://giggleliu.github.io/NiLang.jl/dev/asset/nice_after.png" width=340/>
+
+<h5>References</h5>
+<ul>
+<li><a href="https://arxiv.org/abs/1410.8516">arXiv: 1410.8516</li>
+<li><a href="https://giggleliu.github.io/NiLang.jl/dev/examples/nice/#NICE-network-1">NiLang's documentation</a></li>
+</ul>
 """
 
 # ╔═╡ b44e12b8-d4a3-11ea-3f55-776476cd7d69
 md"""
-##### 3. Optimizing problems in finance
+### 3. Optimizing problems in finance
 Gradient based optimization of Sharpe rate.
 
-**Reference**
-Han Li's Github repo: [https://github.com/HanLi123/NiLang](https://github.com/HanLi123/NiLang)
-and his Zhihu blog [猴子掷骰子](https://zhuanlan.zhihu.com/c_1092471228488634368).
+##### References
+* Han Li's Github repo: [https://github.com/HanLi123/NiLang](https://github.com/HanLi123/NiLang) and his Zhihu blog [猴子掷骰子](https://zhuanlan.zhihu.com/c_1092471228488634368).
 """
 
 # ╔═╡ 85c9edcc-d789-11ea-14c8-71697cd6a047
@@ -361,8 +384,11 @@ md"""
 
 # ╔═╡ 89de0b7e-d4a2-11ea-278a-a392b1649486
 md"""
-## Reversible hardwares
+## Sec VII: Reversible hardwares
 """
+
+# ╔═╡ bc98ba6e-d7cc-11ea-0f63-79a720e8aa6c
+md"""##### Adiabatic CMOS"""
 
 # ╔═╡ 8a4d7fba-d789-11ea-2b3b-23f2c4e5cbdf
 md"""
@@ -454,7 +480,7 @@ NiLangCore.compile_ex(Main, reversed_ex) |> NiLangCore.rmlines
 
 # ╔═╡ d0555864-d78d-11ea-0704-73715bbd9c08
 md"""
-#### Example 4: norm with compute-copy-uncompute paradigm
+#### Example 2: norm with compute-copy-uncompute paradigm
 1. compute desired output,
 2. copy the result to an emptied memory,
 3. undo the computation to restore the values of variables, especially ancillas.
@@ -629,12 +655,22 @@ let
 	HTML(str)
 end
 
+# ╔═╡ 59797cc6-d4a3-11ea-03ab-610102dbc549
+md"""
+### 1. Solve the memory wall problem in machine learning
+$(@bind left html"<button><</button>")
+$(@bind right html"<button>></button>")
+"""
+
 # ╔═╡ 737b7440-d4a3-11ea-35ee-27a2b1b2ee35
 md"""
-##### 2. Solve hard scientific problems
+### 2. Solve hard scientific problems
 Obtaining the optimal configuration of a spinglass problem on a $28 \times 28$ square lattice.
 
 $(LocalResource("asset/spinglass28.svg", :width=>400))
+
+##### References
+unpublished
 """
 
 # ╔═╡ Cell order:
@@ -698,6 +734,7 @@ $(LocalResource("asset/spinglass28.svg", :width=>400))
 # ╟─f06fb004-d79f-11ea-0d60-8151019bf8c7
 # ╠═26a8a42c-d7a1-11ea-24a3-45bc6e0674ea
 # ╠═399552c4-d7a1-11ea-36bb-ad5ca42043cb
+# ╟─4bb19760-d7bf-11ea-12ed-4d9e4efb3482
 # ╠═5a8ba8f4-d493-11ea-1839-8ba81f86799d
 # ╠═a625a922-d493-11ea-1fe9-bdd4a694cde0
 # ╟─4fd20ed2-d7a2-11ea-206e-13799234913f
@@ -711,8 +748,10 @@ $(LocalResource("asset/spinglass28.svg", :width=>400))
 # ╟─8160f4a2-d789-11ea-28f8-e91d58a61642
 # ╟─02fb8e62-d4a3-11ea-2a6e-bd415591c891
 # ╟─59797cc6-d4a3-11ea-03ab-610102dbc549
+# ╟─4a3f8c7c-d7bd-11ea-2370-3d6b629bc653
 # ╟─737b7440-d4a3-11ea-35ee-27a2b1b2ee35
 # ╟─b44e12b8-d4a3-11ea-3f55-776476cd7d69
 # ╟─85c9edcc-d789-11ea-14c8-71697cd6a047
 # ╟─89de0b7e-d4a2-11ea-278a-a392b1649486
+# ╟─bc98ba6e-d7cc-11ea-0f63-79a720e8aa6c
 # ╟─8a4d7fba-d789-11ea-2b3b-23f2c4e5cbdf
