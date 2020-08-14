@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.11.3
+# v0.11.6
 
 using Markdown
 using InteractiveUtils
@@ -13,9 +13,18 @@ macro bind(def, element)
     end
 end
 
+# ╔═╡ 55cfdab8-d792-11ea-271f-e7383e19997c
+using PlutoUI;
+
+# ╔═╡ 9e509f80-d485-11ea-0044-c5b7e750aacb
+using NiLang, PrettyTables
+
+# ╔═╡ 8064ce1c-d492-11ea-3e9a-b9284ee55ff3
+using BenchmarkTools
+
 # ╔═╡ a11c4b60-d77d-11ea-1afe-1f2ab9621f42
 md"""
-# Pipelinable automatic differentiation
+# 连猩猩都能懂的可逆编程: A Niang Tutorial
 **Jinguo Liu** (github: [GiggleLiu](https://github.com/GiggleLiu/))
 
 *Postdoc, Institute of physics, Chinese academy of sciences* (when doing this project)
@@ -62,19 +71,131 @@ f &: x, y → x+y, y\\
 ```
 """
 
+# ╔═╡ a28d38be-d486-11ea-2c40-a377b74a05c1
+# NiLang implementation
+@i function reversible_plus(x, y)
+	x += y
+end
+
+# ╔═╡ e93f0bf6-d487-11ea-1baa-21d51ddb4a20
+reversible_plus(2.0, 3.0)
+
+# ╔═╡ fc932606-d487-11ea-303e-75ca8b7a02f6
+(~reversible_plus)(5.0, 3.0)
+
+# ╔═╡ 05e91f18-ddf1-11ea-105b-530556566fd7
+md"**Comment 1**: The reversible macro `@i` defines two functions, the function itself and its inverse."
+
+# ╔═╡ a961e048-ddf2-11ea-0262-6d19eb82b36b
+md"**Comment 2**: The return statement is not allowed, a reversible function returns input arguments directly."
+
+# ╔═╡ 2d22f504-ddf1-11ea-28ec-5de6f4ee79bb
+md"**Comment 3**: `+=` is considered as reversible for integers and floating point numbers in NiLang, although for floating point numbers, there are *rounding errors*."
+
+# ╔═╡ 0b4edb1a-ddf0-11ea-220c-91f2df7452e7
+@i function reversible_plus2(x, y)
+	reversible_plus(x, y)  # equivalent to `reversible_plus(x, y)`
+	reversible_plus(x, y)
+end
+
+# ╔═╡ f875ecd6-ddef-11ea-22a1-619809d15b37
+md"**Comment 4**: Inside a reversible function definition, a statement changes a variable *inplace*"
+
+# ╔═╡ 913af55a-ddef-11ea-3715-259cf0454ce6
+md"One can execute a single statement in a reversible function using `@instr`"
+
+# ╔═╡ 9028f6b4-ddef-11ea-3130-cf182138d0b8
+let
+	x, y = 2, 3
+	@instr reversible_plus(x, y)
+	(x, y)
+end
+
 # ╔═╡ 712c0fa6-d78e-11ea-2bcb-f3e60bf3c55d
 md"#### Example 2: reversible norm function"
 
+# ╔═╡ 39720bc4-d77a-11ea-323a-a72ddf18d94a
+function regular_norm(x::AbstractArray{T}) where T
+	res = zero(T)  # !
+	for i=1:length(x)
+		@inbounds res += x[i]^2
+	end
+	return sqrt(res) # !
+end
+
+# ╔═╡ 3b4a6b0a-d491-11ea-25db-ad48a3d17662
+@i function reversible_norm(res, y, x::AbstractArray{T}) where {T}
+	for i=1:length(x)
+		@inbounds y += x[i]^2
+	end
+	res += sqrt(y)
+end
+
+# ╔═╡ dfb0d542-d491-11ea-1791-b157ce622ba5
+v = randn(10)
+
+# ╔═╡ 37ed073a-d492-11ea-156f-1fb155128d0f
+begin
+	using Zygote
+	Zygote.gradient(regular_norm, v)
+end
+
+# ╔═╡ 4d75f302-d492-11ea-31b9-bbbdb43f344e
+begin
+	using NiLang.AD
+	NiLang.AD.gradient(reversible_norm, (0.0, 0.0, v), iloss=1)
+end
+
+# ╔═╡ da05bc8e-d491-11ea-0912-f9fc91583154
+regular_norm(v)
+
+# ╔═╡ ed27aaf2-d491-11ea-369d-cd9f67bab59a
+reversible_norm(0.0, 0.0, v)
+
 # ╔═╡ 7a6b9cb4-d77d-11ea-23e4-81537a71a23f
 md"""
-### Reversibility explained
+**Reversibility explained**
 """
+
+# ╔═╡ 3bbf443a-d77c-11ea-1cdd-81b5a00bbd85
+ex = :(begin
+	for i=1:length(x)
+		@inbounds y += x[i]^2
+	end
+	res += sqrt(y)
+	end); NiLangCore.rmlines(ex)
 
 # ╔═╡ 83054e30-d79c-11ea-39a3-ebf3c538e39c
 md"**Obtain the reversed statement**"
 
+# ╔═╡ db16bc76-d77b-11ea-33b2-c10277f30055
+reversed_ex = NiLangCore.dual_ex(Main, ex); reversed_ex |> NiLangCore.rmlines
+
 # ╔═╡ b8dcfb90-d79c-11ea-316f-439123219eee
 md"**Compile the reversible IR to native julia code**"
+
+# ╔═╡ b1528b26-d77c-11ea-2368-8b95a5a39137
+NiLangCore.compile_ex(Main, ex) |> NiLangCore.rmlines
+
+# ╔═╡ 67c0adac-d77d-11ea-2093-8d4b3c00d0fe
+NiLangCore.compile_ex(Main, reversed_ex) |> NiLangCore.rmlines
+
+# ╔═╡ 55d246dc-ddef-11ea-3eb9-e3a3aecf8ac8
+md"##### Example 3: Complex valued log"
+
+# ╔═╡ 7a14db2c-ddef-11ea-02d5-413141f8d614
+@i @inline function (:+=)(log)(y!::Complex{T}, x::Complex{T}) where T
+	@routine begin
+		n ← zero(T)
+		n += abs(x)
+	end
+	y!.re += log(n)
+	y!.im += angle(x)
+	~@routine
+end
+
+# ╔═╡ 8345cf8a-ddef-11ea-0af6-dfbdc737adbc
+
 
 # ╔═╡ d5c2efbc-d779-11ea-11ad-1f5873b95628
 md"""
@@ -90,6 +211,12 @@ md"""
 
 # ╔═╡ 2e6fe4da-d79d-11ea-1e90-f5215190395c
 md"**Obtaining the gradient of the norm function**"
+
+# ╔═╡ 744dd3c6-d492-11ea-0ed5-0fe02f99db1f
+@benchmark Zygote.gradient($regular_norm, $(randn(1000))) seconds=1
+
+# ╔═╡ 8ad60dc0-d492-11ea-2cb3-1750b39ddf86
+@benchmark NiLang.AD.gradient($reversible_norm, (0.0, 0.0, $(randn(1000))), iloss=1)
 
 # ╔═╡ 7753c622-d77e-11ea-1442-037197af6296
 md"""
@@ -143,6 +270,16 @@ POP!(stack, var)
 POP!(var)  # pop `var` from the global stack
 ```
 `POP!` preassumes `var` is zero cleared.
+"""
+
+# ╔═╡ d0555864-d78d-11ea-0704-73715bbd9c08
+md"""
+#### Example 2: norm with compute-copy-uncompute paradigm
+1. compute desired output,
+2. copy the result to an emptied memory,
+3. undo the computation to restore the values of variables, especially ancillas.
+
+$(LocalResource("asset/compute-copy-uncompute.png", :width=>500))
 """
 
 # ╔═╡ dfa98e2a-d49d-11ea-27ce-a9542212bdbb
@@ -202,6 +339,9 @@ html"""
 </div>
 """
 
+# ╔═╡ a0e231f0-d4b2-11ea-3eac-e34f4afbabe6
+LocalResource("asset/if.png", :width=>400)
+
 # ╔═╡ 62b9c7a6-d4a2-11ea-1939-dd76c69ae99c
 html"""
 <h5>While statement</h5>
@@ -225,6 +365,9 @@ html"""
 </div>
 </div>
 """
+
+# ╔═╡ 58495bbc-d4b2-11ea-0e7a-2f5f4a0596a9
+LocalResource("asset/while.png", :width=>400)
 
 # ╔═╡ 7bab4614-d77e-11ea-037c-8d1f432fc3b8
 md"""
@@ -274,6 +417,10 @@ html"""
 </div>
 """
 
+# ╔═╡ cc0d5622-d788-11ea-19cd-3bf6864d9263
+md"""##### Including NiLang.AD
+$(LocalResource("asset/benchmarks.png"))"""
+
 # ╔═╡ 7c79975c-d789-11ea-30b1-67ff05418cdb
 md"""
 ![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
@@ -298,205 +445,12 @@ md"""
 
 # ╔═╡ 11ddebfe-d488-11ea-223a-e9403f6ec8de
 md"""
-##### Example 1: Affine transformation
+##### Example 1: Affine transformation with rounding error
 
 ```julia
 y = A * x + b
 ```
 """
-
-# ╔═╡ 259a2852-d48c-11ea-0f01-b9634850e09d
-md"""
-### Reversible arithmetic functions
-
-Computing basic functions like `power`, `exp` and `besselj` is not trivial for reversible programming.
-There is no efficient constant memory algorithm using pure fixed point numbers only.
-"""
-
-# ╔═╡ f06fb004-d79f-11ea-0d60-8151019bf8c7
-md"""
-##### Example 2: Computing power function
-To compute `x ^ n` reversiblly with fixed point numbers,
-we need to either allocate a vector of size $O(n)$ or suffer from polynomial time overhead. It does not show the advantage to checkpointing.
-"""
-
-# ╔═╡ 4bb19760-d7bf-11ea-12ed-4d9e4efb3482
-md"""
-##### Example 3: the logarithmic number approach
-
-With **logarithmic numbers**, we can still utilize reversibility. Fixed point numbers and logarithmic numbers can be converted via "a fast binary logarithm algorithm".
-
-##### References
-* [1] C. S. Turner, "A Fast Binary Logarithm Algorithm", IEEE Signal Processing Mag., pp. 124,140, Sep. 2010.
-"""
-
-# ╔═╡ 4fd20ed2-d7a2-11ea-206e-13799234913f
-md"**Less allocation, better speed**"
-
-# ╔═╡ 4c209bbe-d7b1-11ea-0628-33eb8d664f5b
-md"""##### Example 4: The first kind Bessel function computed with Taylor expansion
-```math
-J_\nu(z) = \sum\limits_{n=0}^{\infty} \frac{(z/2)^\nu}{\Gamma(k+1)\Gamma(k+\nu+1)} (-z^2/4)^{n}
-```
-
-
-"""
-
-# ╔═╡ 8160f4a2-d789-11ea-28f8-e91d58a61642
-md"""
-![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
-"""
-# ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
-
-# ╔═╡ 02fb8e62-d4a3-11ea-2a6e-bd415591c891
-md"""
-## Sec VI: Applications
-"""
-
-# ╔═╡ 4a3f8c7c-d7bd-11ea-2370-3d6b629bc653
-html"""
-Learning a ring distribution with NICE network, before and after training
-
-<img style="float:left" src="https://giggleliu.github.io/NiLang.jl/dev/asset/nice_before.png" width=340/>
-<img src="https://giggleliu.github.io/NiLang.jl/dev/asset/nice_after.png" width=340/>
-
-<h5>References</h5>
-<ul>
-<li><a href="https://arxiv.org/abs/1410.8516">arXiv: 1410.8516</li>
-<li><a href="https://giggleliu.github.io/NiLang.jl/dev/examples/nice/#NICE-network-1">NiLang's documentation</a></li>
-</ul>
-"""
-
-# ╔═╡ b44e12b8-d4a3-11ea-3f55-776476cd7d69
-md"""
-### 3. Optimizing problems in finance
-Gradient based optimization of Sharpe rate.
-
-##### References
-* Han Li's Github repo: [https://github.com/HanLi123/NiLang](https://github.com/HanLi123/NiLang) and his Zhihu blog [猴子掷骰子](https://zhuanlan.zhihu.com/c_1092471228488634368).
-"""
-
-# ╔═╡ 85c9edcc-d789-11ea-14c8-71697cd6a047
-md"""
-![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
-"""
-# ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
-
-# ╔═╡ 89de0b7e-d4a2-11ea-278a-a392b1649486
-md"""
-## Sec VII: Reversible hardwares
-"""
-
-# ╔═╡ bc98ba6e-d7cc-11ea-0f63-79a720e8aa6c
-md"""##### Adiabatic CMOS"""
-
-# ╔═╡ 8a4d7fba-d789-11ea-2b3b-23f2c4e5cbdf
-md"""
-![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
-"""
-# ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
-
-# ╔═╡ 55cfdab8-d792-11ea-271f-e7383e19997c
-using PlutoUI;
-
-# ╔═╡ 9e509f80-d485-11ea-0044-c5b7e750aacb
-using NiLang, PrettyTables
-
-# ╔═╡ 8064ce1c-d492-11ea-3e9a-b9284ee55ff3
-using BenchmarkTools
-
-# ╔═╡ a28d38be-d486-11ea-2c40-a377b74a05c1
-# NiLang implementation
-@i function reversible_plus(x, y)
-	x += y
-end
-
-# ╔═╡ e93f0bf6-d487-11ea-1baa-21d51ddb4a20
-reversible_plus(2, 3)
-
-# ╔═╡ fc932606-d487-11ea-303e-75ca8b7a02f6
-(~reversible_plus)(5, 3)
-
-# ╔═╡ 39720bc4-d77a-11ea-323a-a72ddf18d94a
-function regular_norm(x::AbstractArray{T}) where T
-	res = zero(T)
-	for i=1:length(x)
-		@inbounds res += x[i]^2
-	end
-	sqrt(res)
-end
-
-# ╔═╡ 3b4a6b0a-d491-11ea-25db-ad48a3d17662
-@i function reversible_norm(res, y, x::AbstractArray{T}) where {T}
-	for i=1:length(x)
-		@inbounds y += x[i]^2
-	end
-	res += sqrt(y)
-end
-
-# ╔═╡ dfb0d542-d491-11ea-1791-b157ce622ba5
-v = randn(10)
-
-# ╔═╡ 37ed073a-d492-11ea-156f-1fb155128d0f
-begin
-	using Zygote
-	Zygote.gradient(regular_norm, v)
-end
-
-# ╔═╡ 4d75f302-d492-11ea-31b9-bbbdb43f344e
-begin
-	using NiLang.AD
-	NiLang.AD.gradient(reversible_norm, (0.0, 0.0, v), iloss=1)
-end
-
-# ╔═╡ da05bc8e-d491-11ea-0912-f9fc91583154
-regular_norm(v)
-
-# ╔═╡ ed27aaf2-d491-11ea-369d-cd9f67bab59a
-reversible_norm(0.0, 0.0, v)
-
-# ╔═╡ 3bbf443a-d77c-11ea-1cdd-81b5a00bbd85
-ex = :(begin
-	for i=1:length(x)
-		@inbounds y += x[i]^2
-	end
-	res += sqrt(y)
-	end); NiLangCore.rmlines(ex)
-
-# ╔═╡ db16bc76-d77b-11ea-33b2-c10277f30055
-reversed_ex = NiLangCore.dual_ex(Main, ex); reversed_ex |> NiLangCore.rmlines
-
-# ╔═╡ b1528b26-d77c-11ea-2368-8b95a5a39137
-NiLangCore.compile_ex(Main, ex) |> NiLangCore.rmlines
-
-# ╔═╡ 67c0adac-d77d-11ea-2093-8d4b3c00d0fe
-NiLangCore.compile_ex(Main, reversed_ex) |> NiLangCore.rmlines
-
-# ╔═╡ 744dd3c6-d492-11ea-0ed5-0fe02f99db1f
-@benchmark Zygote.gradient($regular_norm, $(randn(1000)))
-
-# ╔═╡ 8ad60dc0-d492-11ea-2cb3-1750b39ddf86
-@benchmark NiLang.AD.gradient($reversible_norm, (0.0, 0.0, $(randn(1000))), iloss=1)
-
-# ╔═╡ d0555864-d78d-11ea-0704-73715bbd9c08
-md"""
-#### Example 2: norm with compute-copy-uncompute paradigm
-1. compute desired output,
-2. copy the result to an emptied memory,
-3. undo the computation to restore the values of variables, especially ancillas.
-
-$(LocalResource("asset/compute-copy-uncompute.png", :width=>500))
-"""
-
-# ╔═╡ a0e231f0-d4b2-11ea-3eac-e34f4afbabe6
-LocalResource("asset/if.png", :width=>400)
-
-# ╔═╡ 58495bbc-d4b2-11ea-0e7a-2f5f4a0596a9
-LocalResource("asset/while.png", :width=>400)
-
-# ╔═╡ cc0d5622-d788-11ea-19cd-3bf6864d9263
-md"""##### Including NiLang.AD
-$(LocalResource("asset/benchmarks.png"))"""
 
 # ╔═╡ 030e592e-d488-11ea-060d-97a3bb6353b7
 @i function reversible_affine!(y!::AbstractVector{T}, W::AbstractMatrix{T}, b::AbstractVector{T}, x::AbstractVector{T}) where T
@@ -522,12 +476,28 @@ end;
 yout, Wout, bout, xout = reversible_affine!(zeros(10), W, b, x)
 
 # ╔═╡ fef54688-d48a-11ea-340b-295b88d21382
+# should be restored to 0, but not!
 yin, Win, bin, xin = (~reversible_affine!)(yout, Wout, bout, xout)
+
+# ╔═╡ 259a2852-d48c-11ea-0f01-b9634850e09d
+md"""
+### Reversible arithmetic functions
+
+Computing basic functions like `power`, `exp` and `besselj` is not trivial for reversible programming.
+There is no efficient constant memory algorithm using pure fixed point numbers only.
+"""
+
+# ╔═╡ f06fb004-d79f-11ea-0d60-8151019bf8c7
+md"""
+##### Example 2: Computing power function
+To compute `x ^ n` reversiblly with fixed point numbers,
+we need to either allocate a vector of size $O(n)$ or suffer from polynomial time overhead. It does not show the advantage to checkpointing.
+"""
 
 # ╔═╡ 26a8a42c-d7a1-11ea-24a3-45bc6e0674ea
 @i function i_power_cache(y!::T, x::T, n::Int) where T
     @routine @invcheckoff begin
-        cache ← zeros(T, n)
+        cache ← zeros(T, n)  # allocate a buffer of size n
 		cache[1] += x
         for i=2:n
             cache[i] += cache[i-1] * x
@@ -542,6 +512,16 @@ end
 # ╔═╡ 399552c4-d7a1-11ea-36bb-ad5ca42043cb
 # To check the function
 i_power_cache(Fixed43(0.0), Fixed43(0.99), 100)
+
+# ╔═╡ 4bb19760-d7bf-11ea-12ed-4d9e4efb3482
+md"""
+##### Example 3: reversible thinker, the logarithmic number approach
+
+With **logarithmic numbers**, we can still utilize reversibility. Fixed point numbers and logarithmic numbers can be converted via "a fast binary logarithm algorithm".
+
+##### References
+* [1] C. S. Turner, "A Fast Binary Logarithm Algorithm", IEEE Signal Processing Mag., pp. 124,140, Sep. 2010.
+"""
 
 # ╔═╡ 5a8ba8f4-d493-11ea-1839-8ba81f86799d
 @i function i_power_lognumber(y::T, x::T, n::Int) where T
@@ -566,11 +546,23 @@ end
 # To check the function
 i_power_lognumber(Fixed43(0.0), Fixed43(0.99), 100)
 
+# ╔═╡ 4fd20ed2-d7a2-11ea-206e-13799234913f
+md"**Less allocation, better speed**"
+
 # ╔═╡ 692dfb44-d7a1-11ea-00da-af6550bc0622
 @benchmark i_power_cache(Fixed43(0.0), Fixed43(0.99), 100)
 
 # ╔═╡ 7e4ee09c-d7a1-11ea-0e56-c1921012bc30
 @benchmark i_power_lognumber(Fixed43(0.0), Fixed43(0.99), 100)
+
+# ╔═╡ 4c209bbe-d7b1-11ea-0628-33eb8d664f5b
+md"""##### Example 4: The first kind Bessel function computed with Taylor expansion
+```math
+J_\nu(z) = \sum\limits_{n=0}^{\infty} \frac{(z/2)^\nu}{\Gamma(k+1)\Gamma(k+\nu+1)} (-z^2/4)^{n}
+```
+
+
+"""
 
 # ╔═╡ fd44a3d4-d7a4-11ea-24ea-09456ff2c53d
 @i function ibesselj(y!::T, ν, z::T; atol=1e-8) where T
@@ -619,12 +611,12 @@ end;
 
 # ╔═╡ fe333e28-d49c-11ea-3c5f-3f9fdccfb00c
 @i function reversible_norm_stack(res, x::AbstractArray{T}) where {T}
-	y ← zero(T)
+	y ← zero(T)  # allocate one element
 	@routine for i=1:length(x)
 		@inbounds y += x[i]^2
 	end
 	res += sqrt(y)
-	PUSH!(y)
+	PUSH!(y)   # store it into a stack
 end
 
 # ╔═╡ 19132a62-d49d-11ea-277b-0782a361aa4b
@@ -636,11 +628,11 @@ reversible_norm_stack(0.0, v)
 # ╔═╡ 8a8aaea2-d49c-11ea-2014-37718ebe6465
 @i function reversible_norm_uncompute(res, x::AbstractArray{T}) where {T}
 	y ← zero(T)
-	@routine for i=1:length(x)
+	@routine for i=1:length(x)  # compute y
 		@inbounds y += x[i]^2
 	end
 	res += sqrt(y)
-	~@routine
+	~@routine   # uncompute y, i.e. restore it to 0.
 end
 
 # ╔═╡ 5249aaa8-d78e-11ea-3853-d3b48a930ef8
@@ -655,11 +647,32 @@ let
 	HTML(str)
 end
 
-# ╔═╡ 59797cc6-d4a3-11ea-03ab-610102dbc549
+# ╔═╡ 8160f4a2-d789-11ea-28f8-e91d58a61642
 md"""
-### 1. Solve the memory wall problem in machine learning
-$(@bind left html"<button><</button>")
-$(@bind right html"<button>></button>")
+![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
+"""
+# ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
+
+# ╔═╡ 02fb8e62-d4a3-11ea-2a6e-bd415591c891
+md"""
+## Sec VI: Applications
+"""
+
+# ╔═╡ 6097b916-d92c-11ea-0dee-e9791b041b67
+md"### 1. Solve the memory wall problem in machine learning"
+
+# ╔═╡ 4a3f8c7c-d7bd-11ea-2370-3d6b629bc653
+html"""
+Learning a ring distribution with NICE network, before and after training
+
+<img style="float:left" src="https://giggleliu.github.io/NiLang.jl/dev/asset/nice_before.png" width=340/>
+<img src="https://giggleliu.github.io/NiLang.jl/dev/asset/nice_after.png" width=340/>
+
+<h5>References</h5>
+<ul>
+<li><a href="https://arxiv.org/abs/1410.8516">arXiv: 1410.8516</li>
+<li><a href="https://giggleliu.github.io/NiLang.jl/dev/examples/nice/#NICE-network-1">NiLang's documentation</a></li>
+</ul>
 """
 
 # ╔═╡ 737b7440-d4a3-11ea-35ee-27a2b1b2ee35
@@ -673,6 +686,35 @@ $(LocalResource("asset/spinglass28.svg", :width=>400))
 unpublished
 """
 
+# ╔═╡ b44e12b8-d4a3-11ea-3f55-776476cd7d69
+md"""
+### 3. Optimizing problems in finance
+Gradient based optimization of Sharpe rate.
+
+##### References
+* Han Li's Github repo: [https://github.com/HanLi123/NiLang](https://github.com/HanLi123/NiLang) and his Zhihu blog [猴子掷骰子](https://zhuanlan.zhihu.com/c_1092471228488634368).
+"""
+
+# ╔═╡ 85c9edcc-d789-11ea-14c8-71697cd6a047
+md"""
+![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
+"""
+# ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
+
+# ╔═╡ 89de0b7e-d4a2-11ea-278a-a392b1649486
+md"""
+## Sec VII: Reversible hardwares
+"""
+
+# ╔═╡ bc98ba6e-d7cc-11ea-0f63-79a720e8aa6c
+md"""##### Adiabatic CMOS"""
+
+# ╔═╡ 8a4d7fba-d789-11ea-2b3b-23f2c4e5cbdf
+md"""
+![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
+"""
+# ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
+
 # ╔═╡ Cell order:
 # ╟─a11c4b60-d77d-11ea-1afe-1f2ab9621f42
 # ╟─e54a1be6-d485-11ea-0262-034c56e0fda8
@@ -681,6 +723,13 @@ unpublished
 # ╠═a28d38be-d486-11ea-2c40-a377b74a05c1
 # ╠═e93f0bf6-d487-11ea-1baa-21d51ddb4a20
 # ╠═fc932606-d487-11ea-303e-75ca8b7a02f6
+# ╟─05e91f18-ddf1-11ea-105b-530556566fd7
+# ╟─a961e048-ddf2-11ea-0262-6d19eb82b36b
+# ╟─2d22f504-ddf1-11ea-28ec-5de6f4ee79bb
+# ╠═0b4edb1a-ddf0-11ea-220c-91f2df7452e7
+# ╟─f875ecd6-ddef-11ea-22a1-619809d15b37
+# ╟─913af55a-ddef-11ea-3715-259cf0454ce6
+# ╠═9028f6b4-ddef-11ea-3130-cf182138d0b8
 # ╟─712c0fa6-d78e-11ea-2bcb-f3e60bf3c55d
 # ╠═39720bc4-d77a-11ea-323a-a72ddf18d94a
 # ╠═3b4a6b0a-d491-11ea-25db-ad48a3d17662
@@ -694,6 +743,9 @@ unpublished
 # ╟─b8dcfb90-d79c-11ea-316f-439123219eee
 # ╠═b1528b26-d77c-11ea-2368-8b95a5a39137
 # ╠═67c0adac-d77d-11ea-2093-8d4b3c00d0fe
+# ╟─55d246dc-ddef-11ea-3eb9-e3a3aecf8ac8
+# ╠═7a14db2c-ddef-11ea-02d5-413141f8d614
+# ╠═8345cf8a-ddef-11ea-0af6-dfbdc737adbc
 # ╟─d5c2efbc-d779-11ea-11ad-1f5873b95628
 # ╟─55a3a260-d48e-11ea-06e2-1b7bd7bba6f5
 # ╟─2e6fe4da-d79d-11ea-1e90-f5215190395c
@@ -747,7 +799,7 @@ unpublished
 # ╟─d76be888-d7b4-11ea-2989-2174682ead76
 # ╟─8160f4a2-d789-11ea-28f8-e91d58a61642
 # ╟─02fb8e62-d4a3-11ea-2a6e-bd415591c891
-# ╟─59797cc6-d4a3-11ea-03ab-610102dbc549
+# ╟─6097b916-d92c-11ea-0dee-e9791b041b67
 # ╟─4a3f8c7c-d7bd-11ea-2370-3d6b629bc653
 # ╟─737b7440-d4a3-11ea-35ee-27a2b1b2ee35
 # ╟─b44e12b8-d4a3-11ea-3f55-776476cd7d69
