@@ -24,7 +24,10 @@ using BenchmarkTools
 
 # ╔═╡ a11c4b60-d77d-11ea-1afe-1f2ab9621f42
 md"""
-# 连猩猩都能懂的可逆编程: A Niang Tutorial
+# 连猩猩都能懂的可逆编程
+### (Reversible programming made simple)
+![NiLang](https://raw.githubusercontent.com/GiggleLiu/NiLang.jl/master/docs/src/asset/logo3.png) 
+
 **Jinguo Liu** (github: [GiggleLiu](https://github.com/GiggleLiu/))
 
 *Postdoc, Institute of physics, Chinese academy of sciences* (when doing this project)
@@ -33,17 +36,16 @@ md"""
 
 *Postdoc, Havard* (soon)
 
-## Table of Contents
+# Table of Contents
 1. Reversible programming basic: Reversible functions
 2. Automatic differentiation in NiLang
-3. Reversible memory management and control flow
 4. A benchmark with Tapenade et al.
 5. Reversible programming without rounding error
 6. Real world applications
 7. The hardware and the future
 
-In this talk,
-We use the reversible eDSL ![NiLang](https://raw.githubusercontent.com/GiggleLiu/NiLang.jl/master/docs/src/asset/logo3.png) as our reversible programming tool.
+## In this talk,
+We use the reversible eDSL as our reversible programming tool.
 
 [NiLang](https://github.com/GiggleLiu/NiLang.jl) is a [Julia](https://julialang.org/) package that features
 * a reversible language with arrays,
@@ -57,12 +59,17 @@ We use the reversible eDSL ![NiLang](https://raw.githubusercontent.com/GiggleLiu
 md"""
 ## Sec I. Reversible programming basic: Reversible functions
 
+### 1. Function definition
+
 A reversible function `f` is defined as
 ```julia
 (~f)(f(x, y, z...)...) == (x, y, z...)
 ```
+"""
 
-####  Example 1: reversible adder
+# ╔═╡ d1628f08-ddfb-11ea-241a-c7e6c1a22212
+md"""
+##  Example 1: reversible adder
 ```math
 \begin{align}
 f &: x, y → x+y, y\\
@@ -83,6 +90,9 @@ reversible_plus(2.0, 3.0)
 # ╔═╡ fc932606-d487-11ea-303e-75ca8b7a02f6
 (~reversible_plus)(5.0, 3.0)
 
+# ╔═╡ e3d2b23a-ddfb-11ea-0f5e-e72ed299bb45
+md"## The difference to a regular programming language"
+
 # ╔═╡ 05e91f18-ddf1-11ea-105b-530556566fd7
 md"**Comment 1**: The reversible macro `@i` defines two functions, the function itself and its inverse."
 
@@ -91,6 +101,11 @@ md"**Comment 2**: The return statement is not allowed, a reversible function ret
 
 # ╔═╡ 2d22f504-ddf1-11ea-28ec-5de6f4ee79bb
 md"**Comment 3**: `+=` is considered as reversible for integers and floating point numbers in NiLang, although for floating point numbers, there are *rounding errors*."
+
+# ╔═╡ 0a1a8594-ddfc-11ea-119a-1997c86cd91b
+md"""
+## Use this function
+"""
 
 # ╔═╡ 0b4edb1a-ddf0-11ea-220c-91f2df7452e7
 @i function reversible_plus2(x, y)
@@ -102,131 +117,167 @@ end
 md"**Comment 4**: Inside a reversible function definition, a statement changes a variable *inplace*"
 
 # ╔═╡ 913af55a-ddef-11ea-3715-259cf0454ce6
-md"One can execute a single statement in a reversible function using `@instr`"
+md"One can execute a single statement in a reversible function using the macro `@instr`"
 
 # ╔═╡ 9028f6b4-ddef-11ea-3130-cf182138d0b8
 let
 	x, y = 2, 3
-	@instr reversible_plus(x, y)
+	@instr reversible_plus2(x, y)
 	(x, y)
 end
 
-# ╔═╡ 712c0fa6-d78e-11ea-2bcb-f3e60bf3c55d
-md"#### Example 2: reversible norm function"
+# ╔═╡ cd7b2a2e-ddf5-11ea-04c4-f7583bbb5a53
+md"A statement can be **uncalled** with `~`"
 
-# ╔═╡ 39720bc4-d77a-11ea-323a-a72ddf18d94a
-function regular_norm(x::AbstractArray{T}) where T
-	res = zero(T)  # !
-	for i=1:length(x)
-		@inbounds res += x[i]^2
-	end
-	return sqrt(res) # !
+# ╔═╡ bc98a824-ddf5-11ea-1a6a-1f795452d3d0
+@i function do_nothing(x, y)
+	reversible_plus(x, y)
+	~(reversible_plus(x, y))  # uncall the expression
 end
 
-# ╔═╡ 3b4a6b0a-d491-11ea-25db-ad48a3d17662
-@i function reversible_norm(res, y, x::AbstractArray{T}) where {T}
-	for i=1:length(x)
-		@inbounds y += x[i]^2
-	end
-	res += sqrt(y)
+# ╔═╡ 9337cb62-dfa4-11ea-35d4-172cff496e4f
+md"""# Is "`x = b`" reversible?
+
+```julia
+@i funcntion f(x)   # ×
+	x = 3
 end
-
-# ╔═╡ dfb0d542-d491-11ea-1791-b157ce622ba5
-v = randn(10)
-
-# ╔═╡ 37ed073a-d492-11ea-156f-1fb155128d0f
-begin
-	using Zygote
-	Zygote.gradient(regular_norm, v)
-end
-
-# ╔═╡ 4d75f302-d492-11ea-31b9-bbbdb43f344e
-begin
-	using NiLang.AD
-	NiLang.AD.gradient(reversible_norm, (0.0, 0.0, v), iloss=1)
-end
-
-# ╔═╡ da05bc8e-d491-11ea-0912-f9fc91583154
-regular_norm(v)
-
-# ╔═╡ ed27aaf2-d491-11ea-369d-cd9f67bab59a
-reversible_norm(0.0, 0.0, v)
-
-# ╔═╡ 7a6b9cb4-d77d-11ea-23e4-81537a71a23f
-md"""
-**Reversibility explained**
+```
+No, memory erasure is not reversible.
 """
 
-# ╔═╡ 3bbf443a-d77c-11ea-1cdd-81b5a00bbd85
-ex = :(begin
-	for i=1:length(x)
-		@inbounds y += x[i]^2
-	end
-	res += sqrt(y)
-	end); NiLangCore.rmlines(ex)
+# ╔═╡ bf8b722c-dfa4-11ea-196a-719802bc23c5
+md"""
+## Example 2: How to compute x^5
+"""
 
-# ╔═╡ 83054e30-d79c-11ea-39a3-ebf3c538e39c
-md"**Obtain the reversed statement**"
+# ╔═╡ 330edc28-dfac-11ea-35a5-3144c4afbfcf
+md"note: `*=` is not reversible for usual number systems"
 
-# ╔═╡ db16bc76-d77b-11ea-33b2-c10277f30055
-reversed_ex = NiLangCore.dual_ex(Main, ex); reversed_ex |> NiLangCore.rmlines
+# ╔═╡ 0a679e04-dfa7-11ea-0288-a1fa490c4387
+@i function power5(x5, x4, x3, x2, x1, x)
+	x1 += x
+	x2 += x1 * x
+	x3 += x2 * x
+	x4 += x3 * x
+	x5 += x4 * x
+end
 
-# ╔═╡ b8dcfb90-d79c-11ea-316f-439123219eee
-md"**Compile the reversible IR to native julia code**"
+# ╔═╡ cc32cae8-dfab-11ea-0d0b-c70ea8de720a
+power5(0.0, 0.0, 0.0, 0.0, 0.0, 2.0)
 
-# ╔═╡ b1528b26-d77c-11ea-2368-8b95a5a39137
-NiLangCore.compile_ex(Main, ex) |> NiLangCore.rmlines
+# ╔═╡ b4240c16-dfac-11ea-3a40-33c54436e3a3
+md"# Don't make me so many input arguments!"
 
-# ╔═╡ 67c0adac-d77d-11ea-2093-8d4b3c00d0fe
-NiLangCore.compile_ex(Main, reversed_ex) |> NiLangCore.rmlines
+# ╔═╡ ade52358-dfac-11ea-2dd3-d3a691e7a8a2
+@i function power5_twoinputs(x5, x::T) where T
+	x1 ← zero(T)
+	x2 ← zero(T)
+	x3 ← zero(T)
+	x4 ← zero(T)
+	x1 += x
+	x2 += x1 * x
+	x3 += x2 * x
+	x4 += x3 * x
+	
+	x5 += x4 * x
+	
+	x4 -= x3 * x
+	x3 -= x2 * x
+	x2 -= x1 * x
+	x1 -= x
+	x4 → zero(T)
+	x3 → zero(T)
+	x2 → zero(T)
+	x1 → zero(T)
+end
 
-# ╔═╡ 55d246dc-ddef-11ea-3eb9-e3a3aecf8ac8
-md"##### Example 3: Complex valued log"
+# ╔═╡ d86e2e5e-dfab-11ea-0053-6d52f1164bc5
+power5_twoinputs(0.0, 2.0)
 
-# ╔═╡ 7a14db2c-ddef-11ea-02d5-413141f8d614
-@i @inline function (:+=)(log)(y!::Complex{T}, x::Complex{T}) where T
+# ╔═╡ 6bc97f5e-dfad-11ea-0c43-e30b6620e6e8
+md"# Shorter"
+
+# ╔═╡ 80d24e9e-dfad-11ea-1dae-49568d534f10
+@i function power5_twoinputs_shorter(x5, x::T) where T
 	@routine begin
-		n ← zero(T)
-		n += abs(x)
+		@zeros T x1 x2 x3 x4
+		x1 += x
+		x2 += x1 * x
+		x3 += x2 * x
+		x4 += x3 * x
 	end
-	y!.re += log(n)
-	y!.im += angle(x)
+	
+	x5 += x4 * x
+	
 	~@routine
 end
 
-# ╔═╡ 8345cf8a-ddef-11ea-0af6-dfbdc737adbc
+# ╔═╡ a8092b18-dfad-11ea-0989-474f37d05f73
+power5_twoinputs_shorter(0.0, 2.0)
 
+# ╔═╡ b4ad5830-dfad-11ea-0057-055dda8cc9be
+md"# How to compute x^1000?"
 
-# ╔═╡ d5c2efbc-d779-11ea-11ad-1f5873b95628
+# ╔═╡ cf576d38-dfad-11ea-2682-7bd540db44a5
+@i function power1000(x1000, x::T) where T
+	@routine begin
+		xs ← zeros(T, 1000)
+		xs[1] += 1
+		for i=2:1000
+			xs[i] += xs[i-1] * x
+		end
+	end
+	
+	x1000 += xs[1000] * x
+	
+	~@routine
+end
+
+# ╔═╡ 35fff53c-dfae-11ea-3602-918a17d5a5fa
+power1000(0.0, 1.001)
+
+# ╔═╡ 9c62289a-dfae-11ea-0fe0-b1cb80a87704
+md"#  Don't allocate for me!"
+
+# ╔═╡ 88838bce-dfaf-11ea-1a72-7d15629cfcb0
 md"""
-![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
-"""
-# ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
-
-# ╔═╡ 55a3a260-d48e-11ea-06e2-1b7bd7bba6f5
-md"""
-## Sec II. Automatic differentiation in NiLang
-![adprog](https://github.com/GiggleLiu/NiLang.jl/raw/master/docs/src/asset/adprog.png)
+Multipling two unsigned logarithmic numbers `exp(x)` and `exp(y)`
+```math
+e^x e^y = e^{x + y}
+```
 """
 
-# ╔═╡ 2e6fe4da-d79d-11ea-1e90-f5215190395c
-md"**Obtaining the gradient of the norm function**"
+# ╔═╡ a593f970-dfae-11ea-2d79-876030850dee
+@i function power1000_noalloc(x1000, x::T) where T
+	@routine begin
+		absx ← zero(T)
+		lx ← one(ULogarithmic{T})
+		lx1000 ← one(ULogarithmic{T})
+		absx += abs(x)
+		lx *= convert(absx)
+		for i=1:1000
+			lx1000 *= lx
+		end
+	end
+	x1000 += convert(lx1000)
+	~@routine
+end
 
-# ╔═╡ 744dd3c6-d492-11ea-0ed5-0fe02f99db1f
-@benchmark Zygote.gradient($regular_norm, $(randn(1000))) seconds=1
+# ╔═╡ f448548e-dfaf-11ea-05c0-d5d177683445
+power1000_noalloc(0.0, 1.001)
 
-# ╔═╡ 8ad60dc0-d492-11ea-2cb3-1750b39ddf86
-@benchmark NiLang.AD.gradient($reversible_norm, (0.0, 0.0, $(randn(1000))), iloss=1)
+# ╔═╡ ab67419a-dfae-11ea-27ba-09321303ad62
+md"""# Wrap up
 
-# ╔═╡ 7753c622-d77e-11ea-1442-037197af6296
-md"""
-![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
+* there is no "`=`" operation in reversible computing, use "`←`" to allocate a new variable, and use "`→`" to deallocate an pre-emptied variable.
+* compute-uncompute macro `@routine` and `~@routine`
+* logarithmic number is reversible under `*=` and `/=`
 """
-# ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
 
 # ╔═╡ 2a17f2f6-d496-11ea-1c31-5f85dfd10488
 md"""
-## Sec III. Reversible memory management and control flow
+## 2. Reversible memory management
 
 ### 1. Memory Management
 
@@ -238,7 +289,7 @@ x ← constant
 @zeros T x y z...
 ```
 
-Basically equivalent to the assign (`=`) operation, but has reverse.
+Basically equivalent to the assign (`=`) operation, but the variable has to be a new one.
 
 ##### Memory Deallocation
 ```julia
@@ -256,36 +307,8 @@ ancilla → 0.0
 ```
 """
 
-# ╔═╡ 023193dc-d78e-11ea-2e17-e54ad9144b91
-md"""
-#### Example 1: norm with stack operations
-```julia
-PUSH!(stack, var)
-PUSH!(var)  # push `var` to the global stack
-```
-`PUSH!` zero clears `var`.
-
-```julia
-POP!(stack, var)
-POP!(var)  # pop `var` from the global stack
-```
-`POP!` preassumes `var` is zero cleared.
-"""
-
-# ╔═╡ d0555864-d78d-11ea-0704-73715bbd9c08
-md"""
-#### Example 2: norm with compute-copy-uncompute paradigm
-1. compute desired output,
-2. copy the result to an emptied memory,
-3. undo the computation to restore the values of variables, especially ancillas.
-
-$(LocalResource("asset/compute-copy-uncompute.png", :width=>500))
-"""
-
-# ╔═╡ dfa98e2a-d49d-11ea-27ce-a9542212bdbb
-md"""
-### 2. Reversible Control Flow
-"""
+# ╔═╡ eaae140e-ddf7-11ea-2f0b-bfbeb64d047d
+md"""### 2. Reversible control flows"""
 
 # ╔═╡ d4710366-d49e-11ea-0265-6929049649be
 html"""
@@ -310,6 +333,61 @@ html"""
 </div>
 </div>
 """
+
+# ╔═╡ 712c0fa6-d78e-11ea-2bcb-f3e60bf3c55d
+md"#### Example 2: reversible norm function"
+
+# ╔═╡ 39720bc4-d77a-11ea-323a-a72ddf18d94a
+function regular_norm(x::AbstractArray{T}) where T
+	res = zero(T)  # !
+	for i=1:length(x)
+		@inbounds res += x[i]^2
+	end
+	return sqrt(res) # !
+end
+
+# ╔═╡ 3b4a6b0a-d491-11ea-25db-ad48a3d17662
+@i function reversible_norm(res, y, x::AbstractArray{T}) where {T}
+	for i=1:length(x)
+		@inbounds y += x[i]^2
+	end
+	res += sqrt(y)
+end
+
+# ╔═╡ 2d5dc568-ddf5-11ea-358a-85d2765f8179
+v = randn(10)
+
+# ╔═╡ 37ed073a-d492-11ea-156f-1fb155128d0f
+begin
+	using Zygote
+	Zygote.gradient(regular_norm, v)
+end
+
+# ╔═╡ 4d75f302-d492-11ea-31b9-bbbdb43f344e
+begin
+	using NiLang.AD
+	NiLang.AD.gradient(reversible_norm, (0.0, 0.0, v), iloss=1)
+end
+
+# ╔═╡ da05bc8e-d491-11ea-0912-f9fc91583154
+regular_norm(v)
+
+# ╔═╡ ed27aaf2-d491-11ea-369d-cd9f67bab59a
+reversible_norm(0.0, 0.0, v)
+
+# ╔═╡ 50d253f6-ddf5-11ea-09fa-db03329c3314
+md"##### Example 3: Reversible complex valued log function"
+
+# ╔═╡ fb23e438-ddf4-11ea-2356-fbd82a813900
+@i @inline function (:+=)(log)(y!::Complex{T}, x::Complex{T}) where T
+	@routine begin
+		n ← zero(T)
+		n += abs(x)
+	end
+	y!.re += log(n)
+	y!.im += angle(x)
+	~@routine
+end
 
 # ╔═╡ 0f2e256c-d4a2-11ea-0995-bbc54536f498
 html"""
@@ -337,6 +415,82 @@ html"""
 	</pre>
 </div>
 </div>
+"""
+
+# ╔═╡ 616ba0c8-ddf5-11ea-2bad-2de0f964056a
+md"""**Comment 1**:
+```
+@routine statement
+~@routine
+```
+
+is equivalent to
+```
+statement
+~(statement)
+```
+This is the famous `compute-uncompute` design pattern in reversible computing.
+"""
+
+# ╔═╡ 64c8f454-ddf6-11ea-2e75-c39f9c8b0fa2
+md"""
+**Comment 2**:
+`n ← zero(T)` is the variable allocation operation. It means
+```
+n = zero(T)
+```
+Its inverse is `n → zero(T)`. It means
+```
+@assert n == zero(T)
+deallocate(n)
+```
+"""
+
+# ╔═╡ 023193dc-d78e-11ea-2e17-e54ad9144b91
+md"""
+#### Example 1: norm with stack operations
+```julia
+PUSH!(stack, var)
+PUSH!(var)  # push `var` to the global stack
+```
+`PUSH!` zero clears `var`.
+
+```julia
+POP!(stack, var)
+POP!(var)  # pop `var` from the global stack
+```
+`POP!` preassumes `var` is zero cleared.
+"""
+
+# ╔═╡ d5c2efbc-d779-11ea-11ad-1f5873b95628
+md"""
+![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
+"""
+# ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
+
+# ╔═╡ 55a3a260-d48e-11ea-06e2-1b7bd7bba6f5
+md"""
+## Sec II. Automatic differentiation in NiLang
+![adprog](https://github.com/GiggleLiu/NiLang.jl/raw/master/docs/src/asset/adprog.png)
+"""
+
+# ╔═╡ 2e6fe4da-d79d-11ea-1e90-f5215190395c
+md"**Obtaining the gradient of the norm function**"
+
+# ╔═╡ 744dd3c6-d492-11ea-0ed5-0fe02f99db1f
+@benchmark Zygote.gradient($regular_norm, $(randn(1000))) seconds=1
+
+# ╔═╡ 8ad60dc0-d492-11ea-2cb3-1750b39ddf86
+@benchmark NiLang.AD.gradient($reversible_norm, (0.0, 0.0, $(randn(1000))), iloss=1)
+
+# ╔═╡ d0555864-d78d-11ea-0704-73715bbd9c08
+md"""
+#### Example 2: norm with compute-copy-uncompute paradigm
+1. compute desired output,
+2. copy the result to an emptied memory,
+3. undo the computation to restore the values of variables, especially ancillas.
+
+$(LocalResource("asset/compute-copy-uncompute.png", :width=>500))
 """
 
 # ╔═╡ a0e231f0-d4b2-11ea-3eac-e34f4afbabe6
@@ -374,6 +528,7 @@ md"""
 ![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
 """
 # ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
+
 
 # ╔═╡ fcca27ba-d4a4-11ea-213a-c3e2305869f1
 #**1. The bundle adjustment jacobian benchmark**
@@ -719,33 +874,56 @@ md"""
 # ╟─a11c4b60-d77d-11ea-1afe-1f2ab9621f42
 # ╟─e54a1be6-d485-11ea-0262-034c56e0fda8
 # ╟─55cfdab8-d792-11ea-271f-e7383e19997c
+# ╟─d1628f08-ddfb-11ea-241a-c7e6c1a22212
 # ╠═9e509f80-d485-11ea-0044-c5b7e750aacb
 # ╠═a28d38be-d486-11ea-2c40-a377b74a05c1
 # ╠═e93f0bf6-d487-11ea-1baa-21d51ddb4a20
 # ╠═fc932606-d487-11ea-303e-75ca8b7a02f6
+# ╟─e3d2b23a-ddfb-11ea-0f5e-e72ed299bb45
 # ╟─05e91f18-ddf1-11ea-105b-530556566fd7
 # ╟─a961e048-ddf2-11ea-0262-6d19eb82b36b
 # ╟─2d22f504-ddf1-11ea-28ec-5de6f4ee79bb
+# ╟─0a1a8594-ddfc-11ea-119a-1997c86cd91b
 # ╠═0b4edb1a-ddf0-11ea-220c-91f2df7452e7
 # ╟─f875ecd6-ddef-11ea-22a1-619809d15b37
 # ╟─913af55a-ddef-11ea-3715-259cf0454ce6
 # ╠═9028f6b4-ddef-11ea-3130-cf182138d0b8
+# ╟─cd7b2a2e-ddf5-11ea-04c4-f7583bbb5a53
+# ╠═bc98a824-ddf5-11ea-1a6a-1f795452d3d0
+# ╟─9337cb62-dfa4-11ea-35d4-172cff496e4f
+# ╟─bf8b722c-dfa4-11ea-196a-719802bc23c5
+# ╟─330edc28-dfac-11ea-35a5-3144c4afbfcf
+# ╠═0a679e04-dfa7-11ea-0288-a1fa490c4387
+# ╠═cc32cae8-dfab-11ea-0d0b-c70ea8de720a
+# ╟─b4240c16-dfac-11ea-3a40-33c54436e3a3
+# ╠═ade52358-dfac-11ea-2dd3-d3a691e7a8a2
+# ╠═d86e2e5e-dfab-11ea-0053-6d52f1164bc5
+# ╟─6bc97f5e-dfad-11ea-0c43-e30b6620e6e8
+# ╠═80d24e9e-dfad-11ea-1dae-49568d534f10
+# ╠═a8092b18-dfad-11ea-0989-474f37d05f73
+# ╟─b4ad5830-dfad-11ea-0057-055dda8cc9be
+# ╠═cf576d38-dfad-11ea-2682-7bd540db44a5
+# ╠═35fff53c-dfae-11ea-3602-918a17d5a5fa
+# ╟─9c62289a-dfae-11ea-0fe0-b1cb80a87704
+# ╟─88838bce-dfaf-11ea-1a72-7d15629cfcb0
+# ╠═a593f970-dfae-11ea-2d79-876030850dee
+# ╟─f448548e-dfaf-11ea-05c0-d5d177683445
+# ╟─ab67419a-dfae-11ea-27ba-09321303ad62
+# ╟─2a17f2f6-d496-11ea-1c31-5f85dfd10488
+# ╟─eaae140e-ddf7-11ea-2f0b-bfbeb64d047d
+# ╟─d4710366-d49e-11ea-0265-6929049649be
 # ╟─712c0fa6-d78e-11ea-2bcb-f3e60bf3c55d
 # ╠═39720bc4-d77a-11ea-323a-a72ddf18d94a
 # ╠═3b4a6b0a-d491-11ea-25db-ad48a3d17662
-# ╠═dfb0d542-d491-11ea-1791-b157ce622ba5
+# ╠═2d5dc568-ddf5-11ea-358a-85d2765f8179
 # ╠═da05bc8e-d491-11ea-0912-f9fc91583154
 # ╠═ed27aaf2-d491-11ea-369d-cd9f67bab59a
-# ╟─7a6b9cb4-d77d-11ea-23e4-81537a71a23f
-# ╠═3bbf443a-d77c-11ea-1cdd-81b5a00bbd85
-# ╟─83054e30-d79c-11ea-39a3-ebf3c538e39c
-# ╠═db16bc76-d77b-11ea-33b2-c10277f30055
-# ╟─b8dcfb90-d79c-11ea-316f-439123219eee
-# ╠═b1528b26-d77c-11ea-2368-8b95a5a39137
-# ╠═67c0adac-d77d-11ea-2093-8d4b3c00d0fe
-# ╟─55d246dc-ddef-11ea-3eb9-e3a3aecf8ac8
-# ╠═7a14db2c-ddef-11ea-02d5-413141f8d614
-# ╠═8345cf8a-ddef-11ea-0af6-dfbdc737adbc
+# ╟─50d253f6-ddf5-11ea-09fa-db03329c3314
+# ╠═fb23e438-ddf4-11ea-2356-fbd82a813900
+# ╟─0f2e256c-d4a2-11ea-0995-bbc54536f498
+# ╟─616ba0c8-ddf5-11ea-2bad-2de0f964056a
+# ╟─64c8f454-ddf6-11ea-2e75-c39f9c8b0fa2
+# ╟─023193dc-d78e-11ea-2e17-e54ad9144b91
 # ╟─d5c2efbc-d779-11ea-11ad-1f5873b95628
 # ╟─55a3a260-d48e-11ea-06e2-1b7bd7bba6f5
 # ╟─2e6fe4da-d79d-11ea-1e90-f5215190395c
@@ -754,9 +932,6 @@ md"""
 # ╠═8064ce1c-d492-11ea-3e9a-b9284ee55ff3
 # ╠═744dd3c6-d492-11ea-0ed5-0fe02f99db1f
 # ╠═8ad60dc0-d492-11ea-2cb3-1750b39ddf86
-# ╟─7753c622-d77e-11ea-1442-037197af6296
-# ╟─2a17f2f6-d496-11ea-1c31-5f85dfd10488
-# ╟─023193dc-d78e-11ea-2e17-e54ad9144b91
 # ╠═fe333e28-d49c-11ea-3c5f-3f9fdccfb00c
 # ╠═0d409398-d49d-11ea-2927-555c9923dfbd
 # ╠═19132a62-d49d-11ea-277b-0782a361aa4b
@@ -764,9 +939,6 @@ md"""
 # ╠═8a8aaea2-d49c-11ea-2014-37718ebe6465
 # ╠═90355e92-d49c-11ea-3d8e-a78925bb4c41
 # ╠═5249aaa8-d78e-11ea-3853-d3b48a930ef8
-# ╟─dfa98e2a-d49d-11ea-27ce-a9542212bdbb
-# ╟─d4710366-d49e-11ea-0265-6929049649be
-# ╟─0f2e256c-d4a2-11ea-0995-bbc54536f498
 # ╟─a0e231f0-d4b2-11ea-3eac-e34f4afbabe6
 # ╟─62b9c7a6-d4a2-11ea-1939-dd76c69ae99c
 # ╟─58495bbc-d4b2-11ea-0e7a-2f5f4a0596a9
