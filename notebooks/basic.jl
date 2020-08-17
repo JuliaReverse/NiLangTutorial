@@ -28,7 +28,6 @@ using NiLang.AD
 # ╔═╡ 94b2b962-e02a-11ea-09a5-81b3226891ed
 md"""# 连猩猩都能懂的可逆编程
 ### (Reversible programming made simple)
-![NiLang](https://raw.githubusercontent.com/GiggleLiu/NiLang.jl/master/docs/src/asset/logo3.png) 
 
 **Jinguo Liu** (github: [GiggleLiu](https://github.com/GiggleLiu/))
 
@@ -42,10 +41,9 @@ md"""# 连猩猩都能懂的可逆编程
 # ╔═╡ a5ee60c8-e02a-11ea-3512-7f481e499f23
 md"""
 # Table of Contents
-1. Reversible programming basic: Reversible functions
-2. Automatic differentiation in NiLang
+1. Reversible programming basics
+2. Differentiate everything with a reversible programming language
 4. Real world applications and benchmarks
-7. The hardware and the future
 """
 
 # ╔═╡ a11c4b60-d77d-11ea-1afe-1f2ab9621f42
@@ -54,13 +52,18 @@ md"""
 We use the reversible eDSL [NiLang](https://github.com/GiggleLiu/NiLang.jl) is a [Julia](https://julialang.org/) as our reversible programming tool.
 
 A package that can differentiate everything.
+
+![NiLang](https://raw.githubusercontent.com/GiggleLiu/NiLang.jl/master/docs/src/asset/logo3.png) 
+
+Authors:
+[GiggleLiu](https://github.com/GiggleLiu), [Taine Zhao](https://github.com/thautwarm)
 """
 
 # ╔═╡ e54a1be6-d485-11ea-0262-034c56e0fda8
 md"""
-## Sec I. Reversible programming basic: Reversible functions
+## Sec I. Reversible programming basic
 
-### Function definition
+### Reversible function definition
 
 A reversible function `f` is defined as
 ```julia
@@ -135,19 +138,8 @@ md"A statement can be **uncalled** with `~`"
 	~(reversible_plus(x, y))  # uncall the expression
 end
 
-# ╔═╡ 9337cb62-dfa4-11ea-35d4-172cff496e4f
-md"""# Is "`x = b`" reversible?
-
-```julia
-@i funcntion f(x)   # ×
-	x = 3
-end
-```
-No, memory erasure is not reversible.
-"""
-
 # ╔═╡ ac302844-e07b-11ea-35dd-e3e06054401b
-md"## How to compute $x^5$?"
+md"## Example 2: Compute $x^5$"
 
 # ╔═╡ b722e098-e07b-11ea-3483-01360fb6954e
 @i function naive_power5(y, x)
@@ -160,7 +152,7 @@ end;
 
 # ╔═╡ bf8b722c-dfa4-11ea-196a-719802bc23c5
 md"""
-## Example 2: How to compute x^5
+## Compute x^5 reversibly
 """
 
 # ╔═╡ 330edc28-dfac-11ea-35a5-3144c4afbfcf
@@ -348,7 +340,7 @@ html"""
 """
 
 # ╔═╡ f3b87892-e080-11ea-353d-8d81c52cf9ac
-md"### Should not do"
+md"### You should not do"
 
 # ╔═╡ b27a3974-e030-11ea-0bcd-7f7035d55165
 @i function power1000_bad(x1000, x::T) where T
@@ -432,6 +424,9 @@ html"""
 # ╔═╡ 53c02100-e08f-11ea-1f5d-8b2311b095d2
 LocalResource("asset/if.png", :width=>400)
 
+# ╔═╡ 75751b24-e0b8-11ea-2b37-9d138121345c
+md"### You should not do"
+
 # ╔═╡ 76b84de4-e031-11ea-0bcf-39b86a6b4552
 @i function break_if(x)
 	if x%2 == 1
@@ -443,6 +438,9 @@ end
 
 # ╔═╡ b1984d24-e031-11ea-3b13-3bd0119a2bcb
 break_if(3)
+
+# ╔═╡ 7f163d82-e0b8-11ea-2fe7-332bb4dee586
+md"### You should do"
 
 # ╔═╡ ddc6329e-e031-11ea-0e6e-e7332fa26e22
 @i function happy_if(x)
@@ -459,30 +457,13 @@ happy_if(3)
 # ╔═╡ ab67419a-dfae-11ea-27ba-09321303ad62
 md"""# Wrap up
 
-* reversible arithmetic instructions `+=` and `-=`
-* inverse statement `~`
-* there is no "`=`" operation in reversible computing, use "`←`" to allocate a new variable, and use "`→`" to deallocate an pre-emptied variable.
-* compute-uncompute macro `@routine` and `~@routine`
-* reversible control flow: `for` loop and `if` statement
-* logarithmic number is reversible under `*=` and `/=`
+1. reversible arithmetic instructions `+=` and `-=`, besides, we have `SWAP`, `NEG`, `INC` and `ROT` et. al.
+2. inverse statement `~`
+3. there is no "`=`" operation in reversible computing, use "`←`" to allocate a new variable, and use "`→`" to deallocate an pre-emptied variable.
+4. compute-uncompute macro `@routine` and `~@routine`
+5. reversible control flow: `for` loop and `if` statement, the `while` statement is also available.
+6. logarithmic number is reversible under `*=` and `/=`
 """
-
-# ╔═╡ eaae140e-ddf7-11ea-2f0b-bfbeb64d047d
-md"""### 2. Reversible control flows"""
-
-# ╔═╡ 50d253f6-ddf5-11ea-09fa-db03329c3314
-md"##### Example 3: Reversible complex valued log function"
-
-# ╔═╡ fb23e438-ddf4-11ea-2356-fbd82a813900
-@i @inline function (:+=)(log)(y!::Complex{T}, x::Complex{T}) where T
-	@routine begin
-		n ← zero(T)
-		n += abs(x)
-	end
-	y!.re += log(n)
-	y!.im += angle(x)
-	~@routine
-end
 
 # ╔═╡ d5c2efbc-d779-11ea-11ad-1f5873b95628
 md"""
@@ -492,24 +473,55 @@ md"""
 
 # ╔═╡ 30af9642-e084-11ea-1f92-b52abfddcf06
 md"# Sec II. Automatic differentiation in NiLang
+
+### References
 * Nextjournal [https://nextjournal.com/giggle/reverse-checkpointing](https://nextjournal.com/giggle/reverse-checkpointing)
 
 * arXiv: 2003.04617
 "
 
 # ╔═╡ db1fab1c-e084-11ea-0bf0-b1fbe9e74b3f
-md"""# Why not differentiate the program from the instruction level?
-### Tensor Packages
+html"""<h1><del>Auto</del>matic differentiation?</h1>"""
+
+# ╔═╡ e1370f80-e0bc-11ea-2a90-d50cc762cbcb
+md"When we start learning AD, we start by learning the backward rules of the matrix multiplication"
+
+# ╔═╡ 3098411c-e0bc-11ea-2754-eb0afbd663de
+function mymul!(out, A, B)
+	@assert size(A, 2) == size(B, 1) && size(out) == (size(A, 1), size(B, 2))
+	for k=1:size(B, 2)
+		for j=1:size(B, 1)
+			for i=size(A, 1)
+				@inbounds out[i, k] += A[i, j] * B[j, k]
+			end
+		end
+	end
+	return out
+end
+
+# ╔═╡ 3d0150ee-e0bd-11ea-0a5a-339465b496dc
+md"Then, we learning how to use chain rule to chain different utilities."
+
+# ╔═╡ 8016ff94-e0bc-11ea-3b9e-4f0676587edf
+md"##### But wait! Why don't we start from the backward rules of `+` and `*`, then use the chain rule to derive the backward rule for matrix multiplication?"
+
+# ╔═╡ 99108ace-e0bc-11ea-2744-d1b18db50ae1
+md"# They are different"
+
+# ╔═╡ b2337f26-e0bb-11ea-3da0-9507c35101ae
+md"""
+### Domain-specific autodiff (DS-AD)
 * **Tensor**Flow
 * **PyTorch**
+* **Jax**
+* **Flux (Zygote backended)**
 
-### Tensor Packages
+### General Purposed autodiff (GP-AD)
 * **Tapenade**
-* **Zygote** ?
 """
 
 # ╔═╡ 48db515c-e084-11ea-2eec-018b8545fa34
-md"## Checkpointing
+md"## Traditional AD uses checkpointing
 Checkpoint every 100 steps. Blue and yellow objects are computing and re-computing. Here states 1 and state 101 are cached. Blue objects are computing, and yellow ones are re-computing. The state 100 is the desired state.
 "
 
@@ -569,33 +581,6 @@ end
 # ╔═╡ 8ad60dc0-d492-11ea-2cb3-1750b39ddf86
 @benchmark NiLang.AD.gradient($reversible_norm, (0.0, 0.0, $(randn(1000))), iloss=1)
 
-# ╔═╡ 62b9c7a6-d4a2-11ea-1939-dd76c69ae99c
-html"""
-<h5>While statement</h5>
-<div style="-webkit-column-count: 2; -moz-column-count: 2; column-count: 2; -webkit-column-rule: 1px dotted #e0e0e0; -moz-column-rule: 1px dotted #e0e0e0; column-rule: 1px dotted #e0e0e0; margin-top:30px">
-<div style="display: inline-float">
-	<center><strong>Forward</strong></center>
-	<pre><code class="language-julia">
-	while (precondition, postcondition)
-		# do something
-	end
-	</code></pre>
-</div>
-<div style="display: inline-block;">
-	<center><strong>Reverse</strong></center>
-	<pre><code class="language-julia">
-	while (postcondition, precondition)
-		# undo something
-	end
-	</code>
-	</pre>
-</div>
-</div>
-"""
-
-# ╔═╡ 58495bbc-d4b2-11ea-0e7a-2f5f4a0596a9
-LocalResource("asset/while.png", :width=>400)
-
 # ╔═╡ 7bab4614-d77e-11ea-037c-8d1f432fc3b8
 md"""
 ![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
@@ -618,7 +603,7 @@ md"""
 
 # ╔═╡ 519dc834-e092-11ea-2151-57ef23810b84
 md"""
-## Bundle Adjustment (Jacobian)
+## 1. Bundle Adjustment (Jacobian)
 ![bundle adjustment](https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcRgpGSCWRjHDDaIYQX5ejhMvyKY_GFhynVoQg&usqp=CAU)
 
 *Srajer, Filip, Zuzana Kukelova, and Andrew Fitzgibbon. "A benchmark of selected algorithmic differentiation tools on some problems in computer vision and machine learning." Optimization Methods and Software 33.4-6 (2018): 889-906.*
@@ -639,50 +624,40 @@ html"""
 """
 
 # ╔═╡ 2ec4c700-e093-11ea-06ff-47d2c21a068f
-md"""##### Including NiLang.AD
-$(LocalResource("asset/benchmarks.png"))"""
+md"""##### NiLang.AD and Tapenade
+$(LocalResource("asset/benchmarks_ba.png", :width=>500))"""
 
 # ╔═╡ 474aa228-e092-11ea-042b-bdfaeb99f16f
 md"""
-## Gaussian Mixture Model (Gradient)
+## 2. Gaussian Mixture Model (Gradient)
 ![gmm](https://prateekvjoshi.files.wordpress.com/2013/06/multimodal.jpg)
 """
 
 # ╔═╡ 2baaff10-d56c-11ea-2a23-bfa3a7ae2e4b
 md"""
-## References and setup
+### Benchmarks
 *Srajer, Filip, Zuzana Kukelova, and Andrew Fitzgibbon. "A benchmark of selected algorithmic differentiation tools on some problems in computer vision and machine learning." Optimization Methods and Software 33.4-6 (2018): 889-906.*
 
 **Devices**
 * CPU: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz
-* GPU: Nvidia Titan V. 
 
 **Github Repos** 
 * [https://github.com/microsoft/ADBench](https://github.com/microsoft/ADBench)
-* [https://github.com/JuliaReverse/NiBundleAdjustment.jl](https://github.com/JuliaReverse/NiBundleAdjustment.jl)
 * [https://github.com/JuliaReverse/NiGaussianMixture.jl](https://github.com/JuliaReverse/NiGaussianMixture.jl)
 """
 
 # ╔═╡ 102fbf2e-d56b-11ea-189d-c78d56c0a924
 html"""
 <h5>Results from the original benchmark<h5>
-<div>
-<div style="float: left"><img src="https://adbenchresults.blob.core.windows.net/plots/2020-03-29_15-46-08_70e2e936bea81eebf0de78ce18d4d196daf1204e/static/jacobian/BA%20[Jacobian]%20-%20Release%20Graph.png" width=340/></div>
-<div style=""><img src="https://adbenchresults.blob.core.windows.net/plots/2020-03-29_15-46-08_70e2e936bea81eebf0de78ce18d4d196daf1204e/static/jacobian/GMM%20(10k)%20[Jacobian]%20-%20Release%20Graph.png" width=340/></div>
-</div>
+<img src="https://adbenchresults.blob.core.windows.net/plots/2020-03-29_15-46-08_70e2e936bea81eebf0de78ce18d4d196daf1204e/static/jacobian/GMM%20(10k)%20[Jacobian]%20-%20Release%20Graph.png" width=5000/>
 """
 
 # ╔═╡ cc0d5622-d788-11ea-19cd-3bf6864d9263
 md"""##### Including NiLang.AD
-$(LocalResource("asset/benchmarks.png"))"""
-
-# ╔═╡ 02fb8e62-d4a3-11ea-2a6e-bd415591c891
-md"""
-## Sec VI: Some other Applications
-"""
+$(LocalResource("asset/benchmarks_gmm.png", :width=>500))"""
 
 # ╔═╡ a1646ef0-e091-11ea-00f1-e7c246e191ff
-md"### 1. Solve the memory wall problem in machine learning"
+md"## 3. Solve the memory wall problem in machine learning"
 
 # ╔═╡ b18b3ae8-e091-11ea-24a1-e968b70b217c
 html"""
@@ -700,32 +675,43 @@ Learning a ring distribution with NICE network, before and after training
 
 # ╔═╡ bf3774de-e091-11ea-3372-ef56452158e6
 md"""
-### 2. Solve hard scientific problems
+### 4. Solve hard scientific problems
 Obtaining the optimal configuration of a spinglass problem on a $28 \times 28$ square lattice.
 
 $(LocalResource("asset/spinglass28.svg", :width=>400))
 
 ##### References
-unpublished
+Jin-Guo Liu, Lei Wang, Pan Zhang unpublished
 """
 
 # ╔═╡ c8e4f7a6-e091-11ea-24a3-4399635a41a5
 md"""
-## 3. Optimizing problems in finance
+## 5. Optimizing problems in finance
 Gradient based optimization of Sharpe rate.
+
+
+600x acceleration comparing with using pure Zygote.
 
 ##### References
 * Han Li's Github repo: [https://github.com/HanLi123/NiLang](https://github.com/HanLi123/NiLang) and his Zhihu blog [猴子掷骰子](https://zhuanlan.zhihu.com/c_1092471228488634368).
 """
+
+# ╔═╡ bc872296-e09f-11ea-143b-9bfd5e52b14f
+md"""## 6. Accelerate the performance critical part of variational mean field
+
+[https://github.com/quantumlang/NiLangTest/pull/1](https://github.com/quantumlang/NiLangTest/pull/1)
+
+600x acceleration comparing with using pure Zygote.
+"""
+
+# ╔═╡ e7b21fce-e091-11ea-180c-7b42e00598a9
+md"# Thank you!"
 
 # ╔═╡ 7c79975c-d789-11ea-30b1-67ff05418cdb
 md"""
 ![yeah](https://media1.tenor.com/images/40147f2eac14c0a7f18c34ecba73fa34/tenor.gif?itemid=7805520)
 """
 # ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
-
-# ╔═╡ e7b21fce-e091-11ea-180c-7b42e00598a9
-md"# Thank you!"
 
 # ╔═╡ 5f1c3f6c-d48b-11ea-3eb0-357fd3ece4fc
 md"""
@@ -944,7 +930,6 @@ md"""
 # ╠═9028f6b4-ddef-11ea-3130-cf182138d0b8
 # ╟─cd7b2a2e-ddf5-11ea-04c4-f7583bbb5a53
 # ╠═bc98a824-ddf5-11ea-1a6a-1f795452d3d0
-# ╟─9337cb62-dfa4-11ea-35d4-172cff496e4f
 # ╟─ac302844-e07b-11ea-35dd-e3e06054401b
 # ╠═b722e098-e07b-11ea-3483-01360fb6954e
 # ╟─bf8b722c-dfa4-11ea-196a-719802bc23c5
@@ -976,17 +961,22 @@ md"""
 # ╠═f448548e-dfaf-11ea-05c0-d5d177683445
 # ╟─65cd13ca-e031-11ea-3fc6-977792eb5f8c
 # ╟─53c02100-e08f-11ea-1f5d-8b2311b095d2
+# ╟─75751b24-e0b8-11ea-2b37-9d138121345c
 # ╠═76b84de4-e031-11ea-0bcf-39b86a6b4552
 # ╠═b1984d24-e031-11ea-3b13-3bd0119a2bcb
+# ╟─7f163d82-e0b8-11ea-2fe7-332bb4dee586
 # ╠═ddc6329e-e031-11ea-0e6e-e7332fa26e22
 # ╠═f3d5e1b0-e031-11ea-1a90-7bed88e28bad
 # ╟─ab67419a-dfae-11ea-27ba-09321303ad62
-# ╟─eaae140e-ddf7-11ea-2f0b-bfbeb64d047d
-# ╟─50d253f6-ddf5-11ea-09fa-db03329c3314
-# ╠═fb23e438-ddf4-11ea-2356-fbd82a813900
 # ╟─d5c2efbc-d779-11ea-11ad-1f5873b95628
 # ╟─30af9642-e084-11ea-1f92-b52abfddcf06
 # ╟─db1fab1c-e084-11ea-0bf0-b1fbe9e74b3f
+# ╟─e1370f80-e0bc-11ea-2a90-d50cc762cbcb
+# ╠═3098411c-e0bc-11ea-2754-eb0afbd663de
+# ╟─3d0150ee-e0bd-11ea-0a5a-339465b496dc
+# ╟─8016ff94-e0bc-11ea-3b9e-4f0676587edf
+# ╟─99108ace-e0bc-11ea-2744-d1b18db50ae1
+# ╟─b2337f26-e0bb-11ea-3da0-9507c35101ae
 # ╟─48db515c-e084-11ea-2eec-018b8545fa34
 # ╟─f531f556-e083-11ea-2f7e-77e110d6c53a
 # ╟─62643fbc-e084-11ea-1b1f-39b87ff32b9e
@@ -1003,24 +993,22 @@ md"""
 # ╠═4d75f302-d492-11ea-31b9-bbbdb43f344e
 # ╠═8fedd65a-e08e-11ea-27f4-03bf9ed65875
 # ╠═8ad60dc0-d492-11ea-2cb3-1750b39ddf86
-# ╟─62b9c7a6-d4a2-11ea-1939-dd76c69ae99c
-# ╟─58495bbc-d4b2-11ea-0e7a-2f5f4a0596a9
 # ╟─7bab4614-d77e-11ea-037c-8d1f432fc3b8
 # ╟─fcca27ba-d4a4-11ea-213a-c3e2305869f1
 # ╟─519dc834-e092-11ea-2151-57ef23810b84
-# ╠═c89108f0-e092-11ea-0fe2-efad85008b28
-# ╠═2ec4c700-e093-11ea-06ff-47d2c21a068f
-# ╠═474aa228-e092-11ea-042b-bdfaeb99f16f
-# ╠═2baaff10-d56c-11ea-2a23-bfa3a7ae2e4b
-# ╠═102fbf2e-d56b-11ea-189d-c78d56c0a924
-# ╠═cc0d5622-d788-11ea-19cd-3bf6864d9263
-# ╟─02fb8e62-d4a3-11ea-2a6e-bd415591c891
-# ╠═a1646ef0-e091-11ea-00f1-e7c246e191ff
-# ╠═b18b3ae8-e091-11ea-24a1-e968b70b217c
-# ╠═bf3774de-e091-11ea-3372-ef56452158e6
+# ╟─c89108f0-e092-11ea-0fe2-efad85008b28
+# ╟─2ec4c700-e093-11ea-06ff-47d2c21a068f
+# ╟─474aa228-e092-11ea-042b-bdfaeb99f16f
+# ╟─2baaff10-d56c-11ea-2a23-bfa3a7ae2e4b
+# ╟─102fbf2e-d56b-11ea-189d-c78d56c0a924
+# ╟─cc0d5622-d788-11ea-19cd-3bf6864d9263
+# ╟─a1646ef0-e091-11ea-00f1-e7c246e191ff
+# ╟─b18b3ae8-e091-11ea-24a1-e968b70b217c
+# ╟─bf3774de-e091-11ea-3372-ef56452158e6
 # ╟─c8e4f7a6-e091-11ea-24a3-4399635a41a5
-# ╟─7c79975c-d789-11ea-30b1-67ff05418cdb
+# ╟─bc872296-e09f-11ea-143b-9bfd5e52b14f
 # ╟─e7b21fce-e091-11ea-180c-7b42e00598a9
+# ╟─7c79975c-d789-11ea-30b1-67ff05418cdb
 # ╟─5f1c3f6c-d48b-11ea-3eb0-357fd3ece4fc
 # ╟─11ddebfe-d488-11ea-223a-e9403f6ec8de
 # ╠═030e592e-d488-11ea-060d-97a3bb6353b7
