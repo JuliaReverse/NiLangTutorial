@@ -28,6 +28,9 @@ using NiLang.AD
 # ╔═╡ 94b2b962-e02a-11ea-09a5-81b3226891ed
 md"""# 连猩猩都能懂的可逆编程
 ### (Reversible programming made simple)
+[https://github.com/JuliaReverse/NiLangTutorial/](https://github.com/JuliaReverse/NiLangTutorial/)
+
+$(html"<br>")
 
 **Jinguo Liu** (github: [GiggleLiu](https://github.com/GiggleLiu/))
 
@@ -53,7 +56,7 @@ We use the reversible eDSL [NiLang](https://github.com/GiggleLiu/NiLang.jl) is a
 
 A package that can differentiate everything.
 
-![NiLang](https://raw.githubusercontent.com/GiggleLiu/NiLang.jl/master/docs/src/asset/logo3.png) 
+![NiLang](https://raw.githubusercontent.com/GiggleLiu/NiLang.jl/master/docs/src/asset/logo3.png)
 
 Authors:
 [GiggleLiu](https://github.com/GiggleLiu), [Taine Zhao](https://github.com/thautwarm)
@@ -103,7 +106,18 @@ md"## The difference to a regular programming language"
 md"**Comment 1**: The return statement is not allowed, a reversible function returns input arguments directly."
 
 # ╔═╡ 2d22f504-ddf1-11ea-28ec-5de6f4ee79bb
-md"**Comment 2**: `+=` is considered as reversible for integers and floating point numbers in NiLang, although for floating point numbers, there are *rounding errors*."
+md"**Comment 2**: Every operation is reversible. `+=` is considered as reversible for integers and floating point numbers in NiLang, although for floating point numbers, there are *rounding errors*."
+
+# ╔═╡ 7d08ac24-e143-11ea-2085-539fd9e35889
+md"### A case where `+=` is not reversible"
+
+# ╔═╡ 9fcdd77c-e0df-11ea-09e6-49a2861137e5
+let
+	x, y = 1e-20, 1e20
+	x += y
+	x -= y
+	(x, y)
+end
 
 # ╔═╡ 0a1a8594-ddfc-11ea-119a-1997c86cd91b
 md"""
@@ -119,15 +133,8 @@ end
 # ╔═╡ f875ecd6-ddef-11ea-22a1-619809d15b37
 md"**Comment**: Inside a reversible function definition, a statement changes a variable *inplace*"
 
-# ╔═╡ 913af55a-ddef-11ea-3715-259cf0454ce6
-md"One can execute a single statement in a reversible function using the macro `@instr`"
-
-# ╔═╡ 9028f6b4-ddef-11ea-3130-cf182138d0b8
-let
-	x, y = 2, 3
-	@instr reversible_plus2(x, y)
-	(x, y)
-end
+# ╔═╡ e7557bee-e0cc-11ea-1788-411e759b4766
+reversible_plus2(2.0, 3.0)
 
 # ╔═╡ cd7b2a2e-ddf5-11ea-04c4-f7583bbb5a53
 md"A statement can be **uncalled** with `~`"
@@ -135,24 +142,27 @@ md"A statement can be **uncalled** with `~`"
 # ╔═╡ bc98a824-ddf5-11ea-1a6a-1f795452d3d0
 @i function do_nothing(x, y)
 	reversible_plus(x, y)
-	~(reversible_plus(x, y))  # uncall the expression
+	reversible_plus(x, y)
+	~reversible_plus(x, y)  # uncall the expression
 end
+
+# ╔═╡ 05f8b91c-e0cd-11ea-09e3-f3c5c0e07e63
+do_nothing(2.0, 3.0)
 
 # ╔═╡ ac302844-e07b-11ea-35dd-e3e06054401b
 md"## Example 2: Compute $x^5$"
 
 # ╔═╡ b722e098-e07b-11ea-3483-01360fb6954e
-@i function naive_power5(y, x)
-	y = one(x)
+@i function naive_power5(y, x::T) where T
+	y = one(T)   # error 1: `=` is not reversible
 	for i=1:5
-		y = y * x
+		y *= x   # error 2: `*=` is not reversible
 	end
-	return y
-end;
+end
 
 # ╔═╡ bf8b722c-dfa4-11ea-196a-719802bc23c5
 md"""
-## Compute x^5 reversibly
+## Compute $x^5$ reversibly
 """
 
 # ╔═╡ 330edc28-dfac-11ea-35a5-3144c4afbfcf
@@ -204,7 +214,11 @@ md"""
 **Comment**:
 `n ← zero(T)` is the variable allocation operation. It means
 ```
-n = zero(T)
+if n is defined
+	error
+else
+	n = zero(T)
+end
 ```
 Its inverse is `n → zero(T)`. It means
 ```
@@ -212,51 +226,6 @@ Its inverse is `n → zero(T)`. It means
 deallocate(n)
 ```
 """
-
-# ╔═╡ 499fd2a4-e032-11ea-1928-3561fef48a60
-md"""
-#### stack operations
-```julia
-PUSH!(stack, var)
-PUSH!(var)  # push `var` to the global stack
-```
-`PUSH!` zero clears `var`.
-
-```julia
-POP!(stack, var)
-POP!(var)  # pop `var` from the global stack
-```
-`POP!` preassumes `var` is zero cleared.
-"""
-
-# ╔═╡ 1270d2a8-e080-11ea-1c40-9b3ed52de724
-@i function power5_twoinputs_stack(x5, x::T) where T
-	x1 ← zero(T)
-	x2 ← zero(T)
-	x3 ← zero(T)
-	x4 ← zero(T)
-	x1 += x
-	x2 += x1 * x
-	x3 += x2 * x
-	x4 += x3 * x
-	
-	x5 += x4 * x
-	
-	PUSH!(x1)
-	PUSH!(x2)
-	PUSH!(x3)
-	PUSH!(x4)
-	x4 → zero(T)
-	x3 → zero(T)
-	x2 → zero(T)
-	x1 → zero(T)
-end
-
-# ╔═╡ 31b0d6d6-e080-11ea-318e-897e2ee580f0
-power5_twoinputs_stack(0.0, 2.0)
-
-# ╔═╡ 3ab50d9c-e080-11ea-0e0d-13ae39836ff9
-(~power5_twoinputs)(32.0, 2.0)
 
 # ╔═╡ 6bc97f5e-dfad-11ea-0c43-e30b6620e6e8
 md"# Shorter: compute-copy-uncompute"
@@ -366,9 +335,9 @@ md"#  Don't allocate for me!"
 
 # ╔═╡ 88838bce-dfaf-11ea-1a72-7d15629cfcb0
 md"""
-Multipling two unsigned logarithmic numbers `exp(x)` and `exp(y)`
-```math
-e^x e^y = e^{x + y}
+Multipling two unsigned logarithmic numbers `x = exp(lx)` and `y = exp(ly)`
+```
+x * y = exp(lx) * exp(ly) = exp(lx + ly)
 ```
 """
 
@@ -487,7 +456,7 @@ html"""<h1><del>Auto</del>matic differentiation?</h1>"""
 md"When we start learning AD, we start by learning the backward rules of the matrix multiplication"
 
 # ╔═╡ 3098411c-e0bc-11ea-2754-eb0afbd663de
-function mymul!(out, A, B)
+function mymul!(out::AbstractMatrix, A::AbstractMatrix, B::AbstractMatrix)
 	@assert size(A, 2) == size(B, 1) && size(out) == (size(A, 1), size(B, 2))
 	for k=1:size(B, 2)
 		for j=1:size(B, 1)
@@ -518,6 +487,7 @@ md"""
 
 ### General Purposed autodiff (GP-AD)
 * **Tapenade**
+* **NiLang**
 """
 
 # ╔═╡ 48db515c-e084-11ea-2eec-018b8545fa34
@@ -545,18 +515,18 @@ md"""
 """
 
 # ╔═╡ 38014ad0-e08e-11ea-1905-198038ab7e5f
-md"# The issue of Zygote"
+md"# Obtaining the gradient of norm in Zygote"
 
 # ╔═╡ 2e6fe4da-d79d-11ea-1e90-f5215190395c
 md"**Obtaining the gradient of the norm function**"
 
 # ╔═╡ 6560c28c-e08e-11ea-1094-d333b88071ce
 function regular_norm(x::AbstractArray{T}) where T
-	res = zero(T)  # !
+	res = zero(T)
 	for i=1:length(x)
 		@inbounds res += x[i]^2
 	end
-	return sqrt(res) # !
+	return sqrt(res)
 end
 
 # ╔═╡ 744dd3c6-d492-11ea-0ed5-0fe02f99db1f
@@ -675,13 +645,13 @@ Learning a ring distribution with NICE network, before and after training
 
 # ╔═╡ bf3774de-e091-11ea-3372-ef56452158e6
 md"""
-### 4. Solve hard scientific problems
+## 4. Solve the spinglass ground state configuration
 Obtaining the optimal configuration of a spinglass problem on a $28 \times 28$ square lattice.
 
 $(LocalResource("asset/spinglass28.svg", :width=>400))
 
 ##### References
-Jin-Guo Liu, Lei Wang, Pan Zhang unpublished
+Jin-Guo Liu, Lei Wang, Pan Zhang, **arXiv 2008.06888**
 """
 
 # ╔═╡ c8e4f7a6-e091-11ea-24a3-4399635a41a5
@@ -705,7 +675,11 @@ md"""## 6. Accelerate the performance critical part of variational mean field
 """
 
 # ╔═╡ e7b21fce-e091-11ea-180c-7b42e00598a9
-md"# Thank you!"
+md"""# Thank you!
+Special thanks to my collaborator **Taine Zhao** and (ex-)advisor **Lei Wang**.
+
+QuEra computing (a quantum computing company located in Boston) is hiring people.
+"""
 
 # ╔═╡ 7c79975c-d789-11ea-30b1-67ff05418cdb
 md"""
@@ -918,13 +892,15 @@ md"""
 # ╟─e3d2b23a-ddfb-11ea-0f5e-e72ed299bb45
 # ╟─a961e048-ddf2-11ea-0262-6d19eb82b36b
 # ╟─2d22f504-ddf1-11ea-28ec-5de6f4ee79bb
+# ╟─7d08ac24-e143-11ea-2085-539fd9e35889
+# ╠═9fcdd77c-e0df-11ea-09e6-49a2861137e5
 # ╟─0a1a8594-ddfc-11ea-119a-1997c86cd91b
 # ╠═0b4edb1a-ddf0-11ea-220c-91f2df7452e7
 # ╟─f875ecd6-ddef-11ea-22a1-619809d15b37
-# ╟─913af55a-ddef-11ea-3715-259cf0454ce6
-# ╠═9028f6b4-ddef-11ea-3130-cf182138d0b8
+# ╠═e7557bee-e0cc-11ea-1788-411e759b4766
 # ╟─cd7b2a2e-ddf5-11ea-04c4-f7583bbb5a53
 # ╠═bc98a824-ddf5-11ea-1a6a-1f795452d3d0
+# ╠═05f8b91c-e0cd-11ea-09e3-f3c5c0e07e63
 # ╟─ac302844-e07b-11ea-35dd-e3e06054401b
 # ╠═b722e098-e07b-11ea-3483-01360fb6954e
 # ╟─bf8b722c-dfa4-11ea-196a-719802bc23c5
@@ -935,10 +911,6 @@ md"""
 # ╠═ade52358-dfac-11ea-2dd3-d3a691e7a8a2
 # ╠═d86e2e5e-dfab-11ea-0053-6d52f1164bc5
 # ╟─7951b9ec-e030-11ea-32ee-b1de49378186
-# ╟─499fd2a4-e032-11ea-1928-3561fef48a60
-# ╠═1270d2a8-e080-11ea-1c40-9b3ed52de724
-# ╠═31b0d6d6-e080-11ea-318e-897e2ee580f0
-# ╠═3ab50d9c-e080-11ea-0e0d-13ae39836ff9
 # ╟─6bc97f5e-dfad-11ea-0c43-e30b6620e6e8
 # ╠═80d24e9e-dfad-11ea-1dae-49568d534f10
 # ╠═a8092b18-dfad-11ea-0989-474f37d05f73
