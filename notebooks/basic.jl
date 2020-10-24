@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.11.6
+# v0.11.12
 
 using Markdown
 using InteractiveUtils
@@ -715,14 +715,9 @@ md"""
 
 # ╔═╡ 5f1c3f6c-d48b-11ea-3eb0-357fd3ece4fc
 md"""
-## Sec V. Reversible programming without rounding error
+## Sec IV. More about number systems
 
  
-
-**Appology**: I lied, `+=` is not reversible for floating point numbers
-
- 
-
 * Integers are reversible under (`+=`, `-=`).
 * Floating point number system is **irreversible** under (`+=`, `-=`) and (`*=`, `/=`).
 * [Fixedpoint number system](https://github.com/JuliaMath/FixedPointNumbers.jl) are reversible under (`+=`, `-=`)
