@@ -1,0 +1,6 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+NiLang = "ab4ef3a6-0b42-11ea-31f6-e34652774712"
+Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
