@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.11.12
+# v0.12.4
 
 using Markdown
 using InteractiveUtils
@@ -11,6 +11,12 @@ macro bind(def, element)
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : missing
         el
     end
+end
+
+# ╔═╡ 1ef174fa-16f0-11eb-328a-afc201effd2f
+begin
+	using Pkg
+	Pkg.activate("Project.toml")
 end
 
 # ╔═╡ 55cfdab8-d792-11ea-271f-e7383e19997c
@@ -878,6 +884,7 @@ md"""
 # ![yeah](https://pic.chinesefontdesign.com/uploads/2017/03/chinesefontdesign.com_2017-03-07_08-19-24.gif)
 
 # ╔═╡ Cell order:
+# ╟─1ef174fa-16f0-11eb-328a-afc201effd2f
 # ╟─94b2b962-e02a-11ea-09a5-81b3226891ed
 # ╟─a5ee60c8-e02a-11ea-3512-7f481e499f23
 # ╟─a11c4b60-d77d-11ea-1afe-1f2ab9621f42
