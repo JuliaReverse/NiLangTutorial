@@ -1,5 +1,7 @@
 # NiLang Tutorial
 
+NOTE: migrated to [here](https://giggleliu.github.io/NiLang.jl/dev/notebooks/basic.html), this repo is not maintained anymore.
+
 This repository contains Pluto notebooks for learning [NiLang](https://github.com/GiggleLiu/NiLang.jl).
 
 ## Using Notebooks
